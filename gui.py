@@ -1,14 +1,16 @@
 # gui.py
 from PySide6.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, 
-                             QLabel, QLineEdit, QPushButton, QComboBox, 
+                             QLabel, QLineEdit, QPushButton, QComboBox,
                              QTextEdit, QGroupBox, QFormLayout, QMessageBox)
 from PySide6.QtCore import Qt
+from PySide6.QtGui import QIcon
 import models
 
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Sistema de Análise de Solos")
+        self.setWindowIcon(QIcon('icon.png'))
         self.resize(750, 720)
 
         self.setStyleSheet("""
@@ -97,20 +99,27 @@ class MainWindow(QMainWindow):
         tec_group = QGroupBox("Dados do Técnico")
         tec_layout = QFormLayout(tec_group)
         self.input_txt_nome = QLineEdit()
+        self.input_txt_nome.returnPressed.connect(self.processar_analise)
         
         # CPF configurado com resposta dinâmica ao digitar
         self.input_txt_cpf = QLineEdit()
         self.input_txt_cpf.setPlaceholderText("000.000.000-00")
         self.input_txt_cpf.textEdited.connect(self.formatar_cpf)
+        self.input_txt_cpf.returnPressed.connect(self.processar_analise)
         
         self.input_txt_registro = QLineEdit()
+        self.input_txt_registro.textEdited.connect(self.formatar_inteiro)
+        self.input_txt_registro.returnPressed.connect(self.processar_analise)
         self.input_txt_empresa = QLineEdit()
+        self.input_txt_empresa.returnPressed.connect(self.processar_analise)
         self.input_txt_email = QLineEdit()
+        self.input_txt_email.returnPressed.connect(self.processar_analise)
         
         # Telefone configurado com resposta dinâmica ao digitar
         self.input_txt_telefone = QLineEdit()
         self.input_txt_telefone.setPlaceholderText("(00) 00000-0000")
         self.input_txt_telefone.textEdited.connect(self.formatar_telefone)
+        self.input_txt_telefone.returnPressed.connect(self.processar_analise)
         
         tec_layout.addRow("Nome:", self.input_txt_nome)
         tec_layout.addRow("CPF:", self.input_txt_cpf)
@@ -128,8 +137,12 @@ class MainWindow(QMainWindow):
         
         self.input_solo_lat = QLineEdit()
         self.input_solo_lat.setPlaceholderText("Ex: -23.5505")
+        self.input_solo_lat.textEdited.connect(self.formatar_float)
+        self.input_solo_lat.returnPressed.connect(self.processar_analise)
         self.input_solo_lon = QLineEdit()
         self.input_solo_lon.setPlaceholderText("Ex: -46.6333")
+        self.input_solo_lon.textEdited.connect(self.formatar_float)
+        self.input_solo_lon.returnPressed.connect(self.processar_analise)
         
         solo_layout.addRow("Tipo de Solo:", self.input_solo_tipo)
         solo_layout.addRow("Latitude:", self.input_solo_lat)
@@ -146,6 +159,8 @@ class MainWindow(QMainWindow):
         analise_layout = QFormLayout(analise_group)
         
         self.input_ana_codigo = QLineEdit()
+        self.input_ana_codigo.textEdited.connect(self.formatar_inteiro)
+        self.input_ana_codigo.returnPressed.connect(self.processar_analise)
         
         self.combo_tipo_analise = QComboBox()
         self.combo_tipo_analise.addItems(["pH", "Umidade", "Análise de Nutrientes", "Temperatura"])
@@ -158,6 +173,8 @@ class MainWindow(QMainWindow):
         
         self.label_valor_medida = QLabel("Valor do pH:")
         self.input_ana_valor = QLineEdit()
+        self.input_ana_valor.textEdited.connect(self.formatar_float)
+        self.input_ana_valor.returnPressed.connect(self.processar_analise)
 
         analise_layout.addRow("Código da Análise:", self.input_ana_codigo)
         analise_layout.addRow("Tipo de Análise:", self.combo_tipo_analise)
@@ -256,13 +273,73 @@ class MainWindow(QMainWindow):
             }
             self.label_valor_medida.setText(unidades.get(opcao, "Valor:"))
 
+    def formatar_inteiro(self, text):
+        # Mantém apenas dígitos numéricos
+        apenas_digitos = "".join(filter(str.isdigit, text))
+        sender = self.sender()
+        pos = sender.cursorPosition()
+        old_len = len(text)
+        sender.setText(apenas_digitos)
+        if pos == old_len:
+            sender.setCursorPosition(len(apenas_digitos))
+        else:
+            sender.setCursorPosition(min(pos, len(apenas_digitos)))
+
+    def formatar_float(self, text):
+        # Mantém dígitos, um único ponto decimal e um sinal de menos no início
+        sender = self.sender()
+        pos = sender.cursorPosition()
+        old_len = len(text)
+
+        # Filtra: só dígitos, ponto ou sinal de menos
+        permitido = ""
+        ponto_usado = False
+        for ch in text:
+            if ch.isdigit():
+                permitido += ch
+            elif ch == '.' and not ponto_usado:
+                permitido += ch
+                ponto_usado = True
+            elif ch == '-' and len(permitido) == 0:
+                permitido += ch
+
+        sender.setText(permitido)
+        if pos == old_len:
+            sender.setCursorPosition(len(permitido))
+        else:
+            sender.setCursorPosition(min(pos, len(permitido)))
+
     def processar_analise(self):
         try:
+            # Validação de todos os campos obrigatórios
+            campos_texto = {
+                "Nome": self.input_txt_nome.text().strip(),
+                "Empresa": self.input_txt_empresa.text().strip(),
+                "Email": self.input_txt_email.text().strip(),
+                "Registro": self.input_txt_registro.text().strip(),
+                "Latitude": self.input_solo_lat.text().strip(),
+                "Longitude": self.input_solo_lon.text().strip(),
+                "Código da Análise": self.input_ana_codigo.text().strip(),
+                "Valor da Medida": self.input_ana_valor.text().strip(),
+            }
+
+            for nome_campo, valor in campos_texto.items():
+                if not valor:
+                    raise ValueError(f"O campo '{nome_campo}' é obrigatório e deve ser preenchido.")
+
             cpf_limpo = "".join(filter(str.isdigit, self.input_txt_cpf.text()))
             telefone_limpo = "".join(filter(str.isdigit, self.input_txt_telefone.text()))
 
+            if not cpf_limpo:
+                raise ValueError("O campo 'CPF' é obrigatório e deve ser preenchido.")
             if len(cpf_limpo) != 11:
                 raise ValueError("O CPF deve conter exatamente 11 dígitos numéricos.")
+
+            # Validar CPF usando a lógica do models
+            models.Tecnico.validar_cpf(cpf_limpo)
+
+            if not telefone_limpo:
+                raise ValueError("O campo 'Telefone' é obrigatório e deve ser preenchido.")
             if len(telefone_limpo) < 10:
                 raise ValueError("O Telefone deve conter o DDD e o número completo.")
 
@@ -275,6 +352,10 @@ class MainWindow(QMainWindow):
                 email=self.input_txt_email.text(),
                 telefone=int(telefone_limpo)
             )
+
+            # Validar e-mail usando a lógica do models
+            if not tecnico.validar_email(tecnico.email):
+                raise ValueError("O e-mail digitado não possui um formato válido.")
             
             # Instanciar Solo
             solo = models.Solo(

@@ -1,3 +1,5 @@
+import re
+
 class Tecnico:
     def __init__(self, nome: str, cpf: str, registro: int, empresa: str, email: 
                  str, telefone: int):
@@ -8,15 +10,26 @@ class Tecnico:
         self.email = email
         self.telefone = telefone
 
-    def validar_cpf(self, cpf: str):
-        if len(cpf) != 11:
-            return False
+    @staticmethod
+    def validar_cpf(cpf: str) -> bool:
+        cpf = re.sub(r'\D', '', cpf)
+        if cpf == cpf[0] * 11:
+            raise ValueError('O CPF digitado não é válido.')
+        soma = sum(int(cpf[i]) * (10 - i) for i in range(9))
+        resto = (soma * 10) % 11
+        digito1 = 0 if resto == 10 else resto
+        if digito1 != int(cpf[9]):
+            raise ValueError('O CPF digitado não é válido')
+        soma = sum(int(cpf[i]) * (11 - i) for i in range(10))
+        resto = (soma * 10) % 11
+        digito2 = 0 if resto == 10 else resto
+        if digito2 != int(cpf[10]):
+            raise ValueError('O CPF digitado não é válido')
         return True
 
     def validar_email(self, email: str):
-        if '@' not in email:
-            return False
-        return True
+        padrao = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+        return bool(re.match(padrao, email))
 
     def exibir_dados(self):
         if self.validar_cpf(self.cpf) and self.validar_email(self.email):
