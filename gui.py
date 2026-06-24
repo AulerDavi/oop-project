@@ -5,12 +5,13 @@ from PySide6.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QIcon
 import models
+from utils import resource_path
 
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
+        self.setWindowIcon(QIcon(resource_path('icon.ico')))
         self.setWindowTitle("Sistema de Análise de Solos")
-        self.setWindowIcon(QIcon('icon.png'))
         self.resize(750, 720)
 
         self.setStyleSheet("""
